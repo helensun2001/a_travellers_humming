@@ -1,0 +1,1525 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wanderer · 上海 · 方案三 Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;1,9..144,300;1,9..144,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cream:        #FBF8F3;
+    --cream-dark:   #F0E9DC;
+    --gold:         #C8A45A;
+    --gold-light:   #EDD89A;
+    --gold-pale:    #F5EDD8;
+    --gold-dark:    #8B6A20;
+    --amber:        #A07228;
+    --text-primary: #1C1208;
+    --text-secondary:#6B5B3E;
+    --text-muted:   #A08C68;
+    --border:       #E2D4B4;
+    --white:        #FFFDF8;
+    --red-stamp:    #9B2335;
+    --font-sans:    'Inter', -apple-system, sans-serif;
+    --font-serif:   'Fraunces', Georgia, serif;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background: linear-gradient(135deg, #D4C9B8 0%, #C8BBA8 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px;
+    gap: 16px;
+  }
+
+  /* ─── LABEL ─── */
+  .demo-label {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #8A7D6A;
+    background: rgba(255,255,255,0.5);
+    padding: 6px 16px;
+    border-radius: 20px;
+    backdrop-filter: blur(8px);
+  }
+
+  /* ─── PHONE FRAME ─── */
+  .phone {
+    position: relative;
+    width: 375px;
+    height: 812px;
+    background: var(--cream);
+    border-radius: 48px;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 2px rgba(255,255,255,0.3) inset,
+      0 0 0 10px #1C1A18,
+      0 0 0 12px #2A2826,
+      0 50px 120px rgba(0,0,0,0.5),
+      0 20px 40px rgba(0,0,0,0.3);
+    flex-shrink: 0;
+  }
+
+  /* Dynamic island */
+  .phone::before {
+    content: '';
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 118px;
+    height: 34px;
+    background: #0E0D0C;
+    border-radius: 20px;
+    z-index: 1000;
+  }
+
+  /* ─── MAP ─── */
+  #map {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+
+  .leaflet-tile-pane {
+    filter: sepia(20%) saturate(0.95) hue-rotate(8deg) brightness(0.97);
+  }
+
+  /* hide leaflet attribution on demo */
+  .leaflet-control-attribution { display: none; }
+  .leaflet-control-zoom { display: none; }
+
+  /* ─── STATUS BAR ─── */
+  .status-bar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 54px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 28px 6px;
+    z-index: 90;
+    pointer-events: none;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  /* ─── MAP HEADER ─── */
+  .map-header {
+    position: absolute;
+    top: 54px; left: 0; right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    z-index: 80;
+    pointer-events: none;
+  }
+
+  .map-header-pill {
+    background: rgba(251,248,243,0.92);
+    backdrop-filter: blur(12px);
+    border-radius: 24px;
+    padding: 8px 16px;
+    border: 1px solid rgba(200,164,90,0.3);
+    pointer-events: all;
+  }
+
+  .app-name {
+    font-family: var(--font-serif);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+
+  .app-name span { color: var(--gold); }
+
+  .collection-counter {
+    background: rgba(251,248,243,0.92);
+    backdrop-filter: blur(12px);
+    border-radius: 24px;
+    padding: 8px 14px;
+    border: 1px solid rgba(200,164,90,0.3);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .collection-counter .star { color: var(--gold); }
+
+  /* ─── MAP HINT ─── */
+  .map-hint {
+    position: absolute;
+    bottom: 40px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(251,248,243,0.92);
+    backdrop-filter: blur(12px);
+    border-radius: 24px;
+    padding: 10px 20px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    z-index: 80;
+    white-space: nowrap;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+
+  /* ─── POI MARKERS ─── */
+  .poi-marker {
+    width: 46px;
+    height: 46px;
+    background: var(--white);
+    border: 2.5px solid var(--gold);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    position: relative;
+  }
+
+  .poi-marker:hover { transform: scale(1.1); }
+
+  .poi-marker.active {
+    border-color: var(--gold-dark);
+    box-shadow: 0 0 0 4px rgba(200,164,90,0.25), 0 4px 16px rgba(0,0,0,0.2);
+    transform: scale(1.15);
+  }
+
+  .poi-marker.collected {
+    background: linear-gradient(135deg, var(--gold-pale), var(--gold-light));
+    border-color: var(--gold-dark);
+  }
+
+  .collected-badge {
+    position: absolute;
+    top: -4px; right: -4px;
+    width: 18px; height: 18px;
+    background: var(--gold);
+    border-radius: 50%;
+    border: 2px solid white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: white;
+    font-weight: 700;
+  }
+
+  /* ─── BOTTOM SHEET ─── */
+  .bottom-sheet {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: var(--white);
+    border-radius: 28px 28px 0 0;
+    z-index: 200;
+    transform: translateY(100%);
+    transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+    max-height: 78%;
+    overflow-y: auto;
+    padding-bottom: 40px;
+  }
+
+  .bottom-sheet.open {
+    transform: translateY(0);
+  }
+
+  .sheet-handle {
+    width: 36px; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 12px auto 16px;
+  }
+
+  .sheet-scroll-inner { padding: 0 24px; }
+
+  .poi-category-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .poi-category-badge {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--amber);
+    background: var(--gold-pale);
+    border: 1px solid var(--gold-light);
+    border-radius: 6px;
+    padding: 3px 8px;
+  }
+
+  .poi-title {
+    font-family: var(--font-serif);
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.3;
+    margin-bottom: 12px;
+  }
+
+  .poi-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .poi-tag {
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--cream-dark);
+    border-radius: 20px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+  }
+
+  .poi-body {
+    font-size: 14.5px;
+    line-height: 1.75;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+  }
+
+  .poi-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 16px 0;
+  }
+
+  .poi-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  .poi-meta-icon { font-size: 15px; }
+
+  .arrive-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 20px;
+    padding: 16px;
+    background: linear-gradient(135deg, var(--gold) 0%, var(--amber) 100%);
+    color: var(--white);
+    border: none;
+    border-radius: 16px;
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    letter-spacing: 0.01em;
+  }
+
+  .arrive-btn:hover { opacity: 0.9; transform: scale(0.99); }
+  .arrive-btn:active { transform: scale(0.97); }
+
+  .arrive-btn-sub {
+    font-size: 11px;
+    opacity: 0.8;
+    font-weight: 400;
+    display: block;
+    margin-top: 2px;
+  }
+
+  .close-sheet {
+    position: absolute;
+    top: 16px; right: 20px;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: var(--cream-dark);
+    color: var(--text-muted);
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ─── COLLECTION OVERLAY ─── */
+  .collection-overlay {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    z-index: 300;
+    transform: translateY(100%);
+    transition: transform 0.45s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .collection-overlay.open { transform: translateY(0); }
+
+  .collection-card {
+    background: var(--white);
+    border-radius: 28px 28px 0 0;
+    padding: 28px 28px 50px;
+    text-align: center;
+  }
+
+  .collection-icon-wrap {
+    width: 72px; height: 72px;
+    background: linear-gradient(135deg, var(--gold-pale), var(--gold-light));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    border: 2px solid var(--gold);
+    font-size: 32px;
+    animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both;
+    position: relative;
+    z-index: 1;
+  }
+
+  .collection-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 6px;
+  }
+
+  .collection-poi-name {
+    font-family: var(--font-serif);
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+
+  .collection-sub {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+  }
+
+  .photo-unlock-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 15px;
+    background: var(--text-primary);
+    color: var(--gold-light);
+    border: none;
+    border-radius: 16px;
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    margin-bottom: 12px;
+  }
+
+  .photo-unlock-btn:hover { opacity: 0.88; }
+  .photo-unlock-btn:active { transform: scale(0.98); }
+
+  .skip-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 8px;
+  }
+
+  /* sparkles */
+  .sparkle {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: sparkleFly 0.8s ease-out forwards;
+  }
+
+  @keyframes sparkleFly {
+    0%   { transform: translate(0,0) scale(0); opacity: 1; }
+    60%  { opacity: 1; }
+    100% { transform: translate(var(--dx), var(--dy)) scale(0.3); opacity: 0; }
+  }
+
+  @keyframes popIn {
+    from { transform: scale(0.5); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+  }
+
+  /* ─── PHOTO SCREEN ─── */
+  .photo-screen {
+    position: absolute;
+    inset: 0;
+    background: #0D0C0A;
+    z-index: 400;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+
+  .photo-screen.active { opacity: 1; pointer-events: all; }
+
+  .photo-back-btn {
+    position: absolute;
+    top: 60px; left: 24px;
+    width: 36px; height: 36px;
+    background: rgba(255,255,255,0.15);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 10;
+    backdrop-filter: blur(8px);
+  }
+
+  .photo-viewfinder {
+    position: absolute;
+    top: 100px; left: 24px; right: 24px;
+    height: 380px;
+    border: 2px solid rgba(200,164,90,0.5);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  /* simulated camera view - warm gradient */
+  .photo-viewfinder-bg {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(160deg, #3A2E20 0%, #2A1E10 40%, #1E1608 100%);
+  }
+
+  /* film grain overlay */
+  .photo-viewfinder-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.15'/%3E%3C/svg%3E");
+    opacity: 0.3;
+  }
+
+  /* corner brackets */
+  .bracket {
+    position: absolute;
+    width: 20px; height: 20px;
+    border-color: var(--gold);
+    border-style: solid;
+  }
+
+  .bracket.tl { top: 8px; left: 8px; border-width: 2px 0 0 2px; }
+  .bracket.tr { top: 8px; right: 8px; border-width: 2px 2px 0 0; }
+  .bracket.bl { bottom: 8px; left: 8px; border-width: 0 0 2px 2px; }
+  .bracket.br { bottom: 8px; right: 8px; border-width: 0 2px 2px 0; }
+
+  /* film strip sides */
+  .film-strip-side {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 24px;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    align-items: center;
+    gap: 0;
+    padding: 8px 0;
+  }
+
+  .film-strip-side.left { left: 0; }
+  .film-strip-side.right { right: 0; }
+
+  .film-hole {
+    width: 10px; height: 8px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.06);
+    flex-shrink: 0;
+  }
+
+  .photo-poi-label {
+    position: absolute;
+    bottom: 16px; left: 32px; right: 32px;
+    text-align: center;
+    font-family: var(--font-serif);
+    font-size: 15px;
+    font-style: italic;
+    color: rgba(200,164,90,0.9);
+    letter-spacing: 0.05em;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.8);
+  }
+
+  .photo-location-line {
+    font-size: 11px;
+    font-family: var(--font-sans);
+    font-style: normal;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: block;
+    margin-top: 4px;
+  }
+
+  .photo-shutter-area {
+    position: absolute;
+    bottom: 48px;
+    left: 0; right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 48px;
+  }
+
+  .shutter-btn {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background: var(--white);
+    border: 3px solid rgba(255,255,255,0.4);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+    transition: transform 0.15s;
+    box-shadow: 0 0 0 6px rgba(255,255,255,0.1);
+  }
+
+  .shutter-btn:active { transform: scale(0.92); }
+
+  .photo-label {
+    position: absolute;
+    top: 88px; left: 0; right: 0;
+    text-align: center;
+    font-size: 13px;
+    color: rgba(255,255,255,0.6);
+    letter-spacing: 0.08em;
+  }
+
+  /* ─── TICKET SCREEN ─── */
+  .ticket-screen {
+    position: absolute;
+    inset: 0;
+    background: var(--cream);
+    z-index: 400;
+    overflow-y: auto;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    padding-bottom: 40px;
+  }
+
+  .ticket-screen.active { opacity: 1; pointer-events: all; }
+
+  .ticket-top-bar {
+    padding: 60px 24px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .ticket-top-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .ticket-back-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 4px;
+  }
+
+  .ticket-wrap {
+    margin: 0 20px;
+    animation: ticketReveal 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) 0.1s both;
+  }
+
+  @keyframes ticketReveal {
+    from { transform: scale(0.9) translateY(20px); opacity: 0; }
+    to   { transform: scale(1) translateY(0); opacity: 1; }
+  }
+
+  /* Ticket card */
+  .ticket-card {
+    background: var(--white);
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.05);
+    position: relative;
+  }
+
+  /* Photo zone */
+  .ticket-photo {
+    height: 180px;
+    background: linear-gradient(160deg, #4A3828 0%, #2E2010 60%, #1A1008 100%);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ticket-photo-emoji {
+    font-size: 56px;
+    opacity: 0.6;
+    filter: drop-shadow(0 2px 16px rgba(0,0,0,0.5));
+  }
+
+  .ticket-photo-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.4) 100%);
+  }
+
+  .ticket-photo-label {
+    position: absolute;
+    bottom: 12px; left: 16px;
+    font-family: var(--font-serif);
+    font-size: 13px;
+    font-style: italic;
+    color: rgba(200,164,90,0.9);
+    letter-spacing: 0.03em;
+  }
+
+  /* Ticket body */
+  .ticket-body { padding: 20px 20px 0; }
+
+  .ticket-poi-name {
+    font-family: var(--font-serif);
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.25;
+    margin-bottom: 6px;
+  }
+
+  .ticket-category-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .ticket-cat-badge {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--amber);
+    background: var(--gold-pale);
+    border: 1px solid var(--gold-light);
+    border-radius: 6px;
+    padding: 3px 8px;
+  }
+
+  /* Dotted perforation */
+  .ticket-perf {
+    height: 1px;
+    margin: 16px 0;
+    background: repeating-linear-gradient(
+      to right,
+      var(--border) 0px, var(--border) 6px,
+      transparent 6px, transparent 12px
+    );
+    position: relative;
+  }
+
+  .ticket-perf::before,
+  .ticket-perf::after {
+    content: '';
+    position: absolute;
+    top: 50%; transform: translateY(-50%);
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--cream);
+    border: 1px solid var(--border);
+  }
+
+  .ticket-perf::before { left: -32px; }
+  .ticket-perf::after  { right: -32px; }
+
+  .ticket-meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 0 0 20px;
+  }
+
+  .ticket-meta-item {}
+  .ticket-meta-key {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 3px;
+  }
+  .ticket-meta-val {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    font-family: var(--font-serif);
+  }
+
+  /* VISITED stamp */
+  .ticket-stamp {
+    position: absolute;
+    top: 160px; right: 24px;
+    width: 80px; height: 80px;
+    border: 3px solid var(--red-stamp);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transform: rotate(-12deg);
+    opacity: 0.85;
+    z-index: 5;
+  }
+
+  .ticket-stamp-text {
+    font-family: var(--font-serif);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--red-stamp);
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  .ticket-stamp-star {
+    color: var(--red-stamp);
+    font-size: 16px;
+    margin-bottom: 2px;
+  }
+
+  /* Ticket actions */
+  .ticket-actions {
+    display: flex;
+    gap: 10px;
+    padding: 16px 20px 20px;
+  }
+
+  .ticket-action-primary {
+    flex: 1;
+    padding: 13px;
+    background: var(--text-primary);
+    color: var(--gold-light);
+    border: none;
+    border-radius: 14px;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: opacity 0.2s;
+  }
+
+  .ticket-action-primary:hover { opacity: 0.88; }
+
+  .ticket-action-secondary {
+    padding: 13px 16px;
+    background: none;
+    color: var(--text-secondary);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    transition: background 0.2s;
+  }
+
+  .ticket-action-secondary:hover { background: var(--cream-dark); }
+
+  /* Nearby section */
+  .ticket-nearby {
+    margin: 0 20px;
+    padding: 16px 20px;
+    background: var(--cream-dark);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+  }
+
+  .ticket-nearby-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+
+  .ticket-nearby-items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .ticket-nearby-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .ticket-nearby-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+    flex-shrink: 0;
+  }
+
+  /* ─── BACK TO MAP TOAST ─── */
+  .toast {
+    position: absolute;
+    top: 100px; left: 20px; right: 20px;
+    background: var(--text-primary);
+    color: var(--gold-light);
+    border-radius: 14px;
+    padding: 13px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transform: translateY(-20px);
+    opacity: 0;
+    transition: transform 0.35s, opacity 0.35s;
+    pointer-events: none;
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  /* ─── SCREEN DIM ─── */
+  .sheet-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15,10,5,0);
+    z-index: 190;
+    pointer-events: none;
+    transition: background 0.4s;
+  }
+
+  .sheet-backdrop.dim { background: rgba(15,10,5,0.3); pointer-events: all; }
+
+  /* ─── SCROLLBAR ─── */
+  .bottom-sheet::-webkit-scrollbar { width: 3px; }
+  .bottom-sheet::-webkit-scrollbar-track { background: transparent; }
+  .bottom-sheet::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+</style>
+</head>
+<body>
+
+<div class="demo-label">方案三 · 全量解锁 + 轻量收集 + 票根分享</div>
+
+<div class="phone">
+
+  <!-- Map -->
+  <div id="map"></div>
+
+  <!-- Sheet backdrop -->
+  <div class="sheet-backdrop" id="backdrop"></div>
+
+  <!-- Status bar -->
+  <div class="status-bar">
+    <span style="font-size:13px;font-weight:600;color:#1C1208;">9:41</span>
+    <span style="display:flex;gap:5px;align-items:center;font-size:11px;color:#1C1208;">
+      <svg width="16" height="11" viewBox="0 0 16 11" fill="#1C1208"><path d="M8 1C4.5 1 1.5 2.5 0 4.7l1.5 1.5C2.7 4.1 5.2 2.7 8 2.7s5.3 1.4 6.5 3.5L16 4.7C14.5 2.5 11.5 1 8 1z"/><path d="M8 4C5.6 4 3.5 5 2.1 6.7l1.5 1.5C4.7 6.9 6.2 6 8 6s3.3.9 4.4 2.2l1.5-1.5C12.5 5 10.4 4 8 4z"/><circle cx="8" cy="9.5" r="1.5"/></svg>
+      <span>●●●●</span>
+      <span style="font-weight:700;">100%</span>
+    </span>
+  </div>
+
+  <!-- Map header -->
+  <div class="map-header">
+    <div class="map-header-pill">
+      <div class="app-name">Wan<span>✦</span>derer</div>
+    </div>
+    <div class="collection-counter" id="counter">
+      <span class="star">✦</span>
+      <span id="counter-text">0 / 5 已收集</span>
+    </div>
+  </div>
+
+  <!-- Map hint -->
+  <div class="map-hint" id="mapHint">点击地图上的地点，探索它的故事 →</div>
+
+  <!-- Sheet backdrop click to close -->
+
+  <!-- Bottom sheet – POI detail -->
+  <div class="bottom-sheet" id="bottomSheet">
+    <button class="close-sheet" id="closeSheet">✕</button>
+    <div class="sheet-handle"></div>
+    <div class="sheet-scroll-inner" id="sheetContent"></div>
+  </div>
+
+  <!-- Collection overlay -->
+  <div class="collection-overlay" id="collectionOverlay">
+    <div class="collection-card">
+      <div style="position:relative;" id="sparkleHost">
+        <div class="collection-icon-wrap" id="collectionIcon"></div>
+      </div>
+      <div class="collection-label">✦ 已加入你的收藏</div>
+      <div class="collection-poi-name" id="collectionPoiName"></div>
+      <div class="collection-sub" id="collectionPoiSub"></div>
+      <button class="photo-unlock-btn" id="goPhotoBtn">
+        <span style="font-size:18px;">📸</span>
+        <div>
+          <div>解锁打卡拍照</div>
+          <div style="font-size:11px;opacity:0.7;font-weight:400;margin-top:1px;">生成专属纪念票根</div>
+        </div>
+      </button>
+      <button class="skip-btn" id="skipPhotoBtn">跳过，继续探索</button>
+    </div>
+  </div>
+
+  <!-- Photo screen -->
+  <div class="photo-screen" id="photoScreen">
+    <button class="photo-back-btn" id="photoBack">←</button>
+    <div class="photo-label" id="photoLabel">PHOTO CHECK-IN</div>
+
+    <div class="photo-viewfinder" id="viewfinder">
+      <div class="photo-viewfinder-bg"></div>
+
+      <!-- Film strip sides -->
+      <div class="film-strip-side left" id="filmLeft"></div>
+      <div class="film-strip-side right" id="filmRight"></div>
+
+      <!-- Corner brackets -->
+      <div class="bracket tl"></div>
+      <div class="bracket tr"></div>
+      <div class="bracket bl"></div>
+      <div class="bracket br"></div>
+
+      <div class="photo-poi-label" id="viewfinderLabel">
+        <span></span>
+        <span class="photo-location-line" id="viewfinderSub"></span>
+      </div>
+    </div>
+
+    <div class="photo-shutter-area">
+      <div style="width:40px;height:40px;"></div>
+      <button class="shutter-btn" id="shutterBtn">📸</button>
+      <div style="width:40px;height:40px;"></div>
+    </div>
+  </div>
+
+  <!-- Ticket screen -->
+  <div class="ticket-screen" id="ticketScreen">
+    <div class="ticket-top-bar">
+      <div class="ticket-top-label">你的纪念票根</div>
+      <button class="ticket-back-btn" id="ticketBack">← 返回地图</button>
+    </div>
+
+    <div class="ticket-wrap">
+      <div class="ticket-card" id="ticketCard">
+        <!-- Photo zone -->
+        <div class="ticket-photo">
+          <div class="ticket-photo-emoji" id="ticketEmoji"></div>
+          <div class="ticket-photo-overlay"></div>
+          <div class="ticket-photo-label" id="ticketPhotoLabel"></div>
+        </div>
+
+        <!-- VISITED stamp -->
+        <div class="ticket-stamp">
+          <div class="ticket-stamp-star">✦</div>
+          <div class="ticket-stamp-text">VISITED<br>到 访</div>
+        </div>
+
+        <!-- Ticket body -->
+        <div class="ticket-body">
+          <div class="ticket-poi-name" id="ticketName"></div>
+          <div class="ticket-category-row">
+            <div class="ticket-cat-badge" id="ticketCat"></div>
+          </div>
+
+          <div class="ticket-perf"></div>
+
+          <div class="ticket-meta-grid" id="ticketMeta"></div>
+        </div>
+
+        <!-- Actions -->
+        <div class="ticket-actions">
+          <button class="ticket-action-primary" id="shareBtn">
+            <span>↑</span> 分享票根
+          </button>
+          <button class="ticket-action-secondary" id="saveBtn">
+            <span>♡</span> 收藏
+          </button>
+        </div>
+      </div>
+
+      <!-- Nearby -->
+      <div class="ticket-nearby" id="ticketNearby" style="margin-top:16px;">
+        <div class="ticket-nearby-label">附近还有</div>
+        <div class="ticket-nearby-items" id="nearbyList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">
+    <span style="font-size:16px;">✦</span>
+    <span id="toastText"></span>
+  </div>
+
+</div><!-- /phone -->
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────────────
+
+const POIS = [
+  {
+    id: "1172f301",
+    name: "外白渡桥",
+    lat: 31.2487, lng: 121.4924,
+    category: "电影取景地",
+    emoji: "🎞️",
+    tags: ["电影取景", "《上海滩》", "《色戒》", "1907年", "民国"],
+    title: "一座桥，半部民国电影史",
+    body: "《上海滩》《色戒》《小时代》《情深深雨濛濛》……凡是需要一个「民国上海」的电影，这座1907年的钢结构拱桥几乎是默认出现的第一个镜头，是中国电影工业对老上海最深情的引用。",
+    full_body: "外白渡桥（Garden Bridge）建于1907年，是中国第一座全钢结构铆接桥梁。每逢黄昏，桥上聚集着婚纱摄影团队、MV拍摄组与自拍游客，一座百年铁桥就这样成了无数「上海想象」的发生地。",
+    address: "中山东一路/北苏州路交汇",
+    meta: { 建造年份: "1907年", 桥型: "全钢铆接", 长度: "106.7米" },
+    films: ["《上海滩》", "《色戒》", "《小时代》", "《让子弹飞》"]
+  },
+  {
+    id: "d2b7a9a3",
+    name: "和平饭店爵士酒吧",
+    lat: 31.2461, lng: 121.4885,
+    category: "音乐场所",
+    emoji: "🎷",
+    tags: ["爵士", "民国", "外滩", "现场音乐", "历史建筑"],
+    title: "外滩最后的爵士时代",
+    body: "自1929年起，和平饭店九楼老爵士乐队已连续演奏近百年。乐手平均年龄超过七十岁，他们用同一首《夜上海》见证了这座城市的沧桑轮回。当黄浦江的夜风穿透落地玻璃，你听到的不只是音乐，而是整个民国上海的回声。",
+    full_body: "1929年，沙逊大厦（今和平饭店北楼）落成之初，顶层爵士酒吧便成为远东最时髦的夜生活场所。老爵士乐队历经战乱与变迁几经解散重组，却始终未曾彻底消失。",
+    address: "南京东路20号 · 9F",
+    meta: { 营业时间: "19:00–23:00", 门票: "¥120起", 开业年份: "1929年" },
+    films: []
+  },
+  {
+    id: "2cbfc0d1",
+    name: "百老汇大厦（上海大厦）",
+    lat: 31.2491, lng: 121.4930,
+    category: "电影取景地",
+    emoji: "🎬",
+    tags: ["民国", "《色戒》", "《一步之遥》", "装饰艺术", "影视"],
+    title: "银幕上反复出现的那栋楼",
+    body: "百老汇大厦竣建于1934年，是上海装饰艺术风格的代表作。它出现在《色戒》《一步之遥》《罗曼蒂克消亡史》等数十部华语电影中。每当导演要在镜头里放一座「民国上海」，通常就是这栋楼。",
+    full_body: "这栋22层的红砖大楼由英商公和洋行设计，竣工时是上海最高的建筑之一。二战期间曾被日军占据，1949年后改作上海大厦宾馆，因大量电影取景，已被影迷奉为「朝圣地」。",
+    address: "北苏州路20号",
+    meta: { 建造年份: "1934年", 设计方: "公和洋行", 楼层: "22层" },
+    films: ["《色戒》", "《一步之遥》", "《罗曼蒂克消亡史》"]
+  },
+  {
+    id: "cf7a327b",
+    name: "大光明电影院",
+    lat: 31.2349, lng: 121.4663,
+    category: "历史影院",
+    emoji: "🎦",
+    tags: ["民国", "电影", "邬达克", "远东第一", "Art Deco"],
+    title: "远东第一银幕的灯光",
+    body: "1928年，匈牙利建筑师邬达克将南京西路216号打造成「远东第一影院」。梅兰芳亲自为开幕剪彩，坐拥2000个席位的放映厅在当年堪称奇迹。每当灯光渐暗，这里上演的不只是电影，更是整个上海的欲望与梦想。",
+    full_body: "大光明电影院采用Art Deco风格，外立面以奶白色瓷砖贴面。1928年12月，梅兰芳亲自揭幕，《摩登时代》《乱世佳人》等好莱坞名片均在此首映。",
+    address: "南京西路216号",
+    meta: { 建造年份: "1928年", 建筑师: "邬达克", 座位数: "2000席" },
+    films: ["首映地", "《摩登时代》", "《乱世佳人》"]
+  },
+  {
+    id: "c374822c",
+    name: "外滩12号·汇丰银行旧址",
+    lat: 31.2418, lng: 121.4889,
+    category: "电影取景地",
+    emoji: "🏛️",
+    tags: ["外滩", "穹顶壁画", "《太阳帝国》", "史匹堡", "浦发银行"],
+    title: "穹顶下被拍了一百年的大厅",
+    body: "外滩12号建于1923年，曾被称为「从苏伊士运河到白令海峡最讲究的建筑」。进门后仰望八角形穹顶，200平米的彩色马赛克壁画在光线下流转，斯皮尔伯格拍《太阳帝国》时就把镜头对准了这里。",
+    full_body: "汇丰银行大楼由公和洋行设计，耗资800万两白银。内部八角形穹顶的马赛克镶嵌画描绘了汇丰在全球主要城市的形象，是上海民国商业建筑室内装饰中保存最完整的作品之一。",
+    address: "中山东一路12号（浦东发展银行）",
+    meta: { 建造年份: "1923年", 设计方: "公和洋行", 现用途: "浦发银行" },
+    films: ["《太阳帝国》（1987）"]
+  }
+];
+
+// ─── STATE ──────────────────────────────────────────────────────────────────
+
+let currentPoi   = null;
+let collectedIds = new Set();
+let markers      = {};
+let appState     = 'map'; // map | detail | arrived | photo | ticket
+
+// ─── MAP INIT ───────────────────────────────────────────────────────────────
+
+const map = L.map('map', {
+  center: [31.2448, 121.4890],
+  zoom: 14.5,
+  zoomControl: false,
+  attributionControl: false
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  subdomains: 'abcd',
+  maxZoom: 19
+}).addTo(map);
+
+// Build markers
+POIS.forEach(poi => {
+  const mkEl = document.createElement('div');
+  mkEl.className = 'poi-marker';
+  mkEl.innerHTML = poi.emoji;
+  mkEl.title = poi.name;
+
+  const icon = L.divIcon({
+    html: mkEl.outerHTML,
+    iconSize: [46, 46],
+    iconAnchor: [23, 23],
+    className: ''
+  });
+
+  const marker = L.marker([poi.lat, poi.lng], { icon })
+    .addTo(map)
+    .on('click', () => openDetail(poi));
+
+  markers[poi.id] = marker;
+});
+
+// ─── DETAIL SHEET ───────────────────────────────────────────────────────────
+
+function openDetail(poi) {
+  currentPoi = poi;
+  document.getElementById('mapHint').style.opacity = '0';
+
+  // Build content
+  const isCollected = collectedIds.has(poi.id);
+  const filmRow = poi.films.length
+    ? `<div class="poi-meta-row"><span class="poi-meta-icon">🎬</span><span>影视出镜：${poi.films.join('、')}</span></div>`
+    : '';
+
+  document.getElementById('sheetContent').innerHTML = `
+    <div class="poi-category-row">
+      <div class="poi-category-badge">${poi.category}</div>
+      <span style="font-size:11px;color:var(--text-muted);">上海</span>
+    </div>
+    <div class="poi-title">${poi.title}</div>
+    <div class="poi-tags">
+      ${poi.tags.map(t => `<div class="poi-tag">${t}</div>`).join('')}
+    </div>
+    <div class="poi-body">${poi.body}</div>
+    <div style="font-size:13px;color:var(--text-muted);font-style:italic;background:var(--cream-dark);padding:12px 14px;border-radius:10px;border-left:3px solid var(--gold);line-height:1.6;margin-bottom:16px;">
+      ${poi.full_body}
+    </div>
+    <div class="poi-divider"></div>
+    <div class="poi-meta-row"><span class="poi-meta-icon">📍</span><span>${poi.address}</span></div>
+    ${Object.entries(poi.meta).map(([k,v]) => `
+      <div class="poi-meta-row"><span class="poi-meta-icon">·</span><span>${k}：${v}</span></div>
+    `).join('')}
+    ${filmRow}
+    <button class="arrive-btn" id="arriveBtn" ${isCollected ? 'disabled style="opacity:0.5;cursor:default;"' : ''}>
+      ${isCollected
+        ? '<span>✦</span><div>已收藏此地点<span class="arrive-btn-sub">再次探索</span></div>'
+        : '<span style="font-size:18px;">📍</span><div>模拟到达此地点<span class="arrive-btn-sub">地理位置校验成功后解锁</span></div>'
+      }
+    </button>
+  `;
+
+  if (!isCollected) {
+    document.getElementById('arriveBtn').addEventListener('click', () => triggerArrival(poi));
+  }
+
+  setActiveMarker(poi.id);
+  document.getElementById('bottomSheet').classList.add('open');
+  document.getElementById('backdrop').classList.add('dim');
+  appState = 'detail';
+}
+
+function closeDetail() {
+  document.getElementById('bottomSheet').classList.remove('open');
+  document.getElementById('backdrop').classList.remove('dim');
+  clearActiveMarker();
+  appState = 'map';
+  setTimeout(() => {
+    document.getElementById('mapHint').style.opacity = collectedIds.size > 0 ? '0' : '1';
+  }, 300);
+}
+
+document.getElementById('closeSheet').addEventListener('click', closeDetail);
+document.getElementById('backdrop').addEventListener('click', closeDetail);
+
+// ─── ARRIVAL ────────────────────────────────────────────────────────────────
+
+function triggerArrival(poi) {
+  // Close sheet
+  document.getElementById('bottomSheet').classList.remove('open');
+  document.getElementById('backdrop').classList.remove('dim');
+
+  collectedIds.add(poi.id);
+  updateCounter();
+  updateMarker(poi.id);
+
+  // Fill collection card
+  document.getElementById('collectionIcon').textContent = poi.emoji;
+  document.getElementById('collectionPoiName').textContent = poi.name;
+  document.getElementById('collectionPoiSub').textContent = `${poi.category} · 上海`;
+
+  // Sparkles
+  spawnSparkles();
+
+  document.getElementById('collectionOverlay').classList.add('open');
+  appState = 'arrived';
+}
+
+function spawnSparkles() {
+  const host = document.getElementById('sparkleHost');
+  for (let i = 0; i < 12; i++) {
+    const s = document.createElement('div');
+    s.className = 'sparkle';
+    const angle = (i / 12) * 360;
+    const dist  = 50 + Math.random() * 40;
+    const dx = Math.cos(angle * Math.PI/180) * dist;
+    const dy = Math.sin(angle * Math.PI/180) * dist;
+    const colors = ['#C8A45A','#E8D5A3','#A07228','#F5EDD8','#8B6A20'];
+    const size = 6 + Math.random() * 8;
+    s.style.cssText = `
+      width:${size}px;height:${size}px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      top:50%;left:50%;
+      margin-top:-${size/2}px;margin-left:-${size/2}px;
+      --dx:${dx}px;--dy:${dy}px;
+      animation-delay:${Math.random()*0.3}s;
+    `;
+    host.appendChild(s);
+    setTimeout(() => s.remove(), 1200);
+  }
+}
+
+document.getElementById('goPhotoBtn').addEventListener('click', () => {
+  document.getElementById('collectionOverlay').classList.remove('open');
+  openPhotoScreen(currentPoi);
+});
+
+document.getElementById('skipPhotoBtn').addEventListener('click', () => {
+  document.getElementById('collectionOverlay').classList.remove('open');
+  appState = 'map';
+  showToast(`✦ ${currentPoi.name} 已收藏`);
+});
+
+// ─── PHOTO SCREEN ───────────────────────────────────────────────────────────
+
+function openPhotoScreen(poi) {
+  // Generate film holes
+  ['filmLeft','filmRight'].forEach(id => {
+    const el = document.getElementById(id);
+    el.innerHTML = '';
+    for (let i = 0; i < 10; i++) {
+      const h = document.createElement('div');
+      h.className = 'film-hole';
+      el.appendChild(h);
+    }
+  });
+
+  const vLabel = document.getElementById('viewfinderLabel');
+  vLabel.querySelector('span:first-child').textContent = poi.name;
+  document.getElementById('viewfinderSub').textContent = poi.address;
+  document.getElementById('photoLabel').textContent = poi.category.toUpperCase();
+
+  document.getElementById('photoScreen').classList.add('active');
+  appState = 'photo';
+}
+
+document.getElementById('photoBack').addEventListener('click', () => {
+  document.getElementById('photoScreen').classList.remove('active');
+  appState = 'map';
+  showToast(`✦ ${currentPoi.name} 已收藏`);
+});
+
+document.getElementById('shutterBtn').addEventListener('click', () => {
+  // Flash effect
+  const flash = document.createElement('div');
+  flash.style.cssText = `position:absolute;inset:0;background:white;z-index:9999;animation:none;pointer-events:none;`;
+  document.getElementById('photoScreen').appendChild(flash);
+  flash.animate([{opacity:0.9},{opacity:0}], {duration:300,fill:'forwards'})
+    .finished.then(() => {
+      flash.remove();
+      document.getElementById('photoScreen').classList.remove('active');
+      openTicketScreen(currentPoi);
+    });
+});
+
+// ─── TICKET SCREEN ──────────────────────────────────────────────────────────
+
+function openTicketScreen(poi) {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('zh-CN', { year:'numeric', month:'long', day:'numeric' });
+
+  document.getElementById('ticketEmoji').textContent = poi.emoji;
+  document.getElementById('ticketPhotoLabel').textContent = poi.name;
+  document.getElementById('ticketName').textContent = poi.name;
+  document.getElementById('ticketCat').textContent = poi.category;
+
+  document.getElementById('ticketMeta').innerHTML = `
+    <div class="ticket-meta-item">
+      <div class="ticket-meta-key">到访日期</div>
+      <div class="ticket-meta-val">${dateStr}</div>
+    </div>
+    <div class="ticket-meta-item">
+      <div class="ticket-meta-key">地点坐标</div>
+      <div class="ticket-meta-val">${poi.lat.toFixed(4)}°N</div>
+    </div>
+    <div class="ticket-meta-item">
+      <div class="ticket-meta-key">地址</div>
+      <div class="ticket-meta-val">${poi.address.split('·')[0].trim()}</div>
+    </div>
+    <div class="ticket-meta-item">
+      <div class="ticket-meta-key">收藏进度</div>
+      <div class="ticket-meta-val">${collectedIds.size} / ${POIS.length} ✦</div>
+    </div>
+  `;
+
+  // Nearby (uncollected POIs)
+  const nearby = POIS.filter(p => p.id !== poi.id && !collectedIds.has(p.id)).slice(0, 3);
+  document.getElementById('nearbyList').innerHTML = nearby.map(p => `
+    <div class="ticket-nearby-item">
+      <div class="ticket-nearby-dot"></div>
+      <span>${p.emoji} ${p.name} · ${p.category}</span>
+    </div>
+  `).join('');
+
+  if (nearby.length === 0) {
+    document.getElementById('ticketNearby').style.display = 'none';
+  } else {
+    document.getElementById('ticketNearby').style.display = 'block';
+    document.getElementById('ticketNearby').querySelector('.ticket-nearby-label').textContent =
+      `附近还有 ${nearby.length} 处未探索`;
+  }
+
+  document.getElementById('ticketScreen').classList.add('active');
+  appState = 'ticket';
+}
+
+document.getElementById('ticketBack').addEventListener('click', () => {
+  document.getElementById('ticketScreen').classList.remove('active');
+  appState = 'map';
+  showToast(`收藏进度 ${collectedIds.size}/${POIS.length} ✦`);
+});
+
+document.getElementById('shareBtn').addEventListener('click', () => {
+  showToast('分享图已生成，可发送给好友 ↑');
+});
+
+document.getElementById('saveBtn').addEventListener('click', () => {
+  document.getElementById('saveBtn').textContent = '♥ 已收藏';
+});
+
+// ─── HELPERS ────────────────────────────────────────────────────────────────
+
+function updateCounter() {
+  document.getElementById('counter-text').textContent = `${collectedIds.size} / ${POIS.length} 已收集`;
+}
+
+function updateMarker(poiId) {
+  const poi = POIS.find(p => p.id === poiId);
+  if (!poi) return;
+
+  const mkEl = document.createElement('div');
+  mkEl.className = 'poi-marker collected';
+  mkEl.innerHTML = `${poi.emoji}<div class="collected-badge">✦</div>`;
+
+  const icon = L.divIcon({
+    html: mkEl.outerHTML,
+    iconSize: [46, 46],
+    iconAnchor: [23, 23],
+    className: ''
+  });
+
+  markers[poiId].setIcon(icon);
+}
+
+function setActiveMarker(poiId) {
+  // Reset all, set active
+  POIS.forEach(poi => {
+    const isCollected = collectedIds.has(poi.id);
+    const isActive    = poi.id === poiId;
+
+    const mkEl = document.createElement('div');
+    mkEl.className = `poi-marker${isCollected ? ' collected' : ''}${isActive ? ' active' : ''}`;
+    mkEl.innerHTML = `${poi.emoji}${isCollected ? '<div class="collected-badge">✦</div>' : ''}`;
+
+    markers[poi.id].setIcon(L.divIcon({
+      html: mkEl.outerHTML,
+      iconSize: [46, 46],
+      iconAnchor: [23, 23],
+      className: ''
+    }));
+  });
+}
+
+function clearActiveMarker() {
+  POIS.forEach(poi => {
+    const isCollected = collectedIds.has(poi.id);
+    const mkEl = document.createElement('div');
+    mkEl.className = `poi-marker${isCollected ? ' collected' : ''}`;
+    mkEl.innerHTML = `${poi.emoji}${isCollected ? '<div class="collected-badge">✦</div>' : ''}`;
+
+    markers[poi.id].setIcon(L.divIcon({
+      html: mkEl.outerHTML,
+      iconSize: [46, 46],
+      iconAnchor: [23, 23],
+      className: ''
+    }));
+  });
+}
+
+let toastTimer;
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toastText').textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// Initial map invalidation
+setTimeout(() => map.invalidateSize(), 100);
+</script>
+</body>
+</html>
